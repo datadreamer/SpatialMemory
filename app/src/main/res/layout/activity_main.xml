@@ -7,8 +7,9 @@
 
     <TextView
         android:id="@+id/geocoordinates"
-        android:text="@string/geocoordinates"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:textSize="25px"
+        android:text="@string/geocoordinates" />
 
 </RelativeLayout>

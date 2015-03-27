@@ -11,16 +11,24 @@ import android.widget.TextView;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.*;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
+
+import java.text.DateFormat;
+import java.util.Date;
 
 
 public class MainActivity extends ActionBarActivity implements
-        ConnectionCallbacks, OnConnectionFailedListener {
+        ConnectionCallbacks, OnConnectionFailedListener, LocationListener {
 
     private static final String TAG = "SpatialMemory";
     protected GoogleApiClient mGoogleApiClient;
-    protected Location mLastLocation;
-    protected double lat, lon;
+    protected Location mCurrentLocation;
+    protected LocationRequest mLocationRequest;
+    protected String mLastUpdateTime;
+    protected int updateCount;
+    protected boolean mRequestingLocationUpdates;
     protected TextView textElement;
 
 
@@ -29,6 +37,9 @@ public class MainActivity extends ActionBarActivity implements
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         textElement = (TextView) findViewById(R.id.geocoordinates);
+        mRequestingLocationUpdates = true;
+        mLastUpdateTime = "";
+        updateCount = 0;
         buildGoogleApiClient();
     }
 
@@ -61,6 +72,18 @@ public class MainActivity extends ActionBarActivity implements
                 .addOnConnectionFailedListener(this)
                 .addApi(LocationServices.API)
                 .build();
+        createLocationRequest();
+    }
+
+    protected void createLocationRequest() {
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(10000);
+        mLocationRequest.setFastestInterval(5000);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+    }
+
+    protected void startLocationUpdates() {
+        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
     }
 
     @Override
@@ -78,14 +101,27 @@ public class MainActivity extends ActionBarActivity implements
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        stopLocationUpdates();
+    }
+
+    protected void stopLocationUpdates() {
+        LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (mGoogleApiClient.isConnected() && !mRequestingLocationUpdates) {
+            startLocationUpdates();
+        }
+    }
+
+    @Override
     public void onConnected(Bundle bundle) {
-        mLastLocation = LocationServices.FusedLocationApi.getLastLocation(
-                mGoogleApiClient);
-        if (mLastLocation != null) {
-            lat = mLastLocation.getLatitude();
-            lon = mLastLocation.getLongitude();
-            Log.d(TAG, String.valueOf(lat) +", "+ String.valueOf(lon));
-            textElement.setText(String.valueOf(lat) +", "+ String.valueOf(lon));
+        if (mRequestingLocationUpdates) {
+            startLocationUpdates();
         }
     }
 
@@ -98,5 +134,23 @@ public class MainActivity extends ActionBarActivity implements
     @Override
     public void onConnectionFailed(ConnectionResult result) {
         Log.d(TAG, "Connection failed: ConnectionResult.getErrorCode() = " + result.getErrorCode());
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        mCurrentLocation = location;
+        mLastUpdateTime = DateFormat.getTimeInstance().format(new Date());
+        updateCount++;
+        updateUI();
+    }
+
+    private void updateUI() {
+        Log.d(TAG, String.valueOf(mCurrentLocation.getLatitude()) +", "+ String.valueOf(mCurrentLocation.getLongitude()));
+        String history = textElement.getText().toString();
+        textElement.setText(String.valueOf(updateCount) + ": "+
+                mLastUpdateTime +" = "+
+                String.valueOf(mCurrentLocation.getLatitude()) +", "+
+                String.valueOf(mCurrentLocation.getLongitude()) +"\n"+
+                history);
     }
 }
