@@ -20,7 +20,7 @@ import java.util.Date;
 
 
 public class MainActivity extends ActionBarActivity implements
-        ConnectionCallbacks, OnConnectionFailedListener, LocationListener {
+        ConnectionCallbacks, OnConnectionFailedListener, LocationListener, HttpTaskListener {
 
     private static final String TAG = "SpatialMemory";
     protected GoogleApiClient mGoogleApiClient;
@@ -30,6 +30,10 @@ public class MainActivity extends ActionBarActivity implements
     protected int updateCount;
     protected boolean mRequestingLocationUpdates;
     protected TextView textElement;
+    protected String serverData;
+    protected boolean requestedLocalData;
+    protected HttpAsyncTask localDataTask;
+    private String apiUrl = "http://www.spatialmemory.com/api.py";
 
 
     @Override
@@ -38,6 +42,7 @@ public class MainActivity extends ActionBarActivity implements
         setContentView(R.layout.activity_main);
         textElement = (TextView) findViewById(R.id.geocoordinates);
         mRequestingLocationUpdates = true;
+        requestedLocalData = false;
         mLastUpdateTime = "";
         updateCount = 0;
         buildGoogleApiClient();
@@ -140,6 +145,11 @@ public class MainActivity extends ActionBarActivity implements
     public void onLocationChanged(Location location) {
         mCurrentLocation = location;
         mLastUpdateTime = DateFormat.getTimeInstance().format(new Date());
+        if(!requestedLocalData){
+            localDataTask = new HttpAsyncTask(this);
+            localDataTask.execute(apiUrl + "?action=local&lat=" + String.valueOf(mCurrentLocation.getLatitude()) + "&lon=" + String.valueOf(mCurrentLocation.getLongitude()));
+            requestedLocalData = true;
+        }
         updateCount++;
         updateUI();
     }
@@ -152,5 +162,10 @@ public class MainActivity extends ActionBarActivity implements
                 String.valueOf(mCurrentLocation.getLatitude()) +", "+
                 String.valueOf(mCurrentLocation.getLongitude()) +"\n"+
                 history);
+    }
+
+    @Override
+    public void httpTaskComplete(String result) {
+        Log.d(TAG, result);
     }
 }
