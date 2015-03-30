@@ -14,11 +14,11 @@ import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-public class HttpAsyncTask extends AsyncTask<String, Void, String> {
-    private static final String TAG = "HttpAsyncTask";
+public class HttpTask extends AsyncTask<String, Void, String> {
+    private static final String TAG = "HttpTask";
     private HttpTaskListener listener;
 
-    public HttpAsyncTask(HttpTaskListener listener){
+    public HttpTask(HttpTaskListener listener){
         this.listener = listener;
     }
 
@@ -33,6 +33,7 @@ public class HttpAsyncTask extends AsyncTask<String, Void, String> {
 
     // callback to listeners with string result
     protected void onPostExecute(String result) {
+        //  parse to json objects
         listener.httpTaskComplete(result);
     }
 
@@ -70,7 +71,6 @@ public class HttpAsyncTask extends AsyncTask<String, Void, String> {
         while((line = reader.readLine()) != null){
             data += line;
         }
-        // TODO: consider parsing json to objects?
         reader.close();
         return data;
     }
