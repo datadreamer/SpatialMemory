@@ -1,21 +1,20 @@
 package com.datadreamer.spatialmemory;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
-import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
+/**
+ * Threaded task to download data from the API.
+ */
 public class HttpTask extends AsyncTask<String, Void, String> {
-    private static final String TAG = "HttpTask";
+    private static final String TAG = "GetAPITask";
     private HttpTaskListener listener;
 
     public HttpTask(HttpTaskListener listener){
@@ -33,8 +32,7 @@ public class HttpTask extends AsyncTask<String, Void, String> {
 
     // callback to listeners with string result
     protected void onPostExecute(String result) {
-        //  parse to json objects
-        listener.httpTaskComplete(result);
+        listener.httpDataDownloaded(result);
     }
 
     // GET url and return resulting content as string.
@@ -48,12 +46,8 @@ public class HttpTask extends AsyncTask<String, Void, String> {
             conn.setConnectTimeout(15000);
             conn.setRequestMethod("GET");
             conn.setDoInput(true);
-
             conn.connect();
-            int response = conn.getResponseCode();
-            Log.d(TAG, String.valueOf(response));
             is = conn.getInputStream();
-
             String contentAsString = readString(is, len);
             return contentAsString;
         } finally {
@@ -73,10 +67,5 @@ public class HttpTask extends AsyncTask<String, Void, String> {
         }
         reader.close();
         return data;
-    }
-
-    //Reads an InputStream and converts it to a Bitmap.
-    public Bitmap readImage(InputStream stream, int len) throws IOException, UnsupportedEncodingException {
-        return BitmapFactory.decodeStream(stream);
     }
 }

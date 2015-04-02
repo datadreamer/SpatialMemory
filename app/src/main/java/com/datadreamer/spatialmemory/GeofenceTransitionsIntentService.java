@@ -6,6 +6,7 @@ import android.app.PendingIntent;
 import android.app.TaskStackBuilder;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.support.v4.app.NotificationCompat;
@@ -14,6 +15,9 @@ import android.util.Log;
 
 import com.google.android.gms.location.Geofence;
 import com.google.android.gms.location.GeofencingEvent;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,9 +29,13 @@ import java.util.List;
  * the transition type and geofence id(s) that triggered the transition. Creates a notification
  * as the output.
  */
-public class GeofenceTransitionsIntentService extends IntentService {
+public class GeofenceTransitionsIntentService extends IntentService implements HttpTaskListener {
 
     protected static final String TAG = "Geofence";
+    protected HttpTask dataTask;
+    protected HttpImageTask imageTask;
+    private String apiUrl = "http://www.spatialmemory.com/api.py";
+    private String id, circa, title;
 
     public GeofenceTransitionsIntentService() {
         super(TAG);
@@ -47,25 +55,26 @@ public class GeofenceTransitionsIntentService extends IntentService {
             return;
         }
 
-        // Get the transition type.
         int geofenceTransition = geofencingEvent.getGeofenceTransition();
-
-        // Test that the reported transition was of interest.
         if (geofenceTransition == Geofence.GEOFENCE_TRANSITION_ENTER || geofenceTransition == Geofence.GEOFENCE_TRANSITION_EXIT) {
-
-            // Get the geofences that were triggered. A single event can trigger multiple geofences.
             List<Geofence> triggeringGeofences = geofencingEvent.getTriggeringGeofences();
+            //String geofenceTransitionDetails = getGeofenceTransitionDetails(this, geofenceTransition, triggeringGeofences);
+            //sendNotification(geofenceTransitionDetails);
+            //Log.i(TAG, geofenceTransitionDetails);
+            for (Geofence geofence : triggeringGeofences) {
+                Log.d(TAG, geofence.getRequestId());
+                id = geofence.getRequestId();
+                // FIXME: do something with multiple ID's returned
+            }
 
-            // Get the transition details as a String.
-            String geofenceTransitionDetails = getGeofenceTransitionDetails(
-                    this,
-                    geofenceTransition,
-                    triggeringGeofences
-            );
+            // TODO: grab data from photoList
+            //ArrayList photoList = intent.getParcelableArrayListExtra("photoList");
 
-            // Send notification and log the transition details.
-            sendNotification(geofenceTransitionDetails);
-            Log.i(TAG, geofenceTransitionDetails);
+            // grab data from server since this isn't working
+            dataTask = new HttpTask(this);
+            dataTask.execute(apiUrl + "?action=info&id=" + id);
+            // TODO: issue notification with thumb and
+            // photo data
         } else {
             // Log the error.
             Log.e(TAG, getString(R.string.geofence_transition_invalid_type, geofenceTransition));
@@ -74,32 +83,25 @@ public class GeofenceTransitionsIntentService extends IntentService {
 
     /**
      * Posts a notification in the notification bar when a transition is detected.
-     * If the user clicks the notification, control goes to the MainActivity.
+     * If the user clicks the notification, control goes to the PhotoActivity.
      */
     private void sendNotification(String notificationDetails) {
-        // Create an explicit content Intent that starts the main Activity.
-        Intent notificationIntent = new Intent(getApplicationContext(), MainActivity.class);
-
-        // Construct a task stack.
-        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
-
-        // Add the main Activity to the task stack as the parent.
-        stackBuilder.addParentStack(MainActivity.class);
-
-        // Push the content Intent onto the stack.
-        stackBuilder.addNextIntent(notificationIntent);
+        //Intent notificationIntent = new Intent(getApplicationContext(), MainActivity.class);    // Create an explicit content Intent that starts the main Activity.
+        Intent notificationIntent = new Intent(getApplicationContext(), PhotoActivity.class);
+        //notificationIntent.putExtra("photo", )
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);  // Construct a task stack.
+        stackBuilder.addParentStack(MainActivity.class);                // Add the main Activity to the task stack as the parent.
+        stackBuilder.addNextIntent(notificationIntent);                 // Push the content Intent onto the stack.
 
         // Get a PendingIntent containing the entire back stack.
-        PendingIntent notificationPendingIntent =
-                stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
-
+        PendingIntent notificationPendingIntent = stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
         // Get a notification builder that's compatible with platform versions >= 4
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
 
         // Define the notification settings.
+        // TODO: use image that was just downloaded for icon.
+        // TODO: grab title and date of image and display in notification.
         builder.setSmallIcon(R.drawable.ic_launcher)
-                // In a real app, you may want to use a library like Volley
-                // to decode the Bitmap.
                 .setLargeIcon(BitmapFactory.decodeResource(getResources(), R.drawable.ic_launcher))
                 .setColor(Color.RED)
                 .setContentTitle(notificationDetails)
@@ -108,11 +110,8 @@ public class GeofenceTransitionsIntentService extends IntentService {
 
         // Dismiss notification once the user touches it.
         builder.setAutoCancel(true);
-
         // Get an instance of the Notification manager
-        NotificationManager mNotificationManager =
-                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-
+        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         // Issue the notification
         mNotificationManager.notify(0, builder.build());
     }
@@ -137,5 +136,44 @@ public class GeofenceTransitionsIntentService extends IntentService {
             default:
                 return getString(R.string.unknown_geofence_transition);
         }
+    }
+
+    @Override
+    public void httpDataDownloaded(String result) {
+        // get photo data to display in notification
+        Log.d(TAG, "Photo info downloaded.");
+        try {
+            JSONObject p = new JSONObject(result);
+            id = p.getString("id");
+            circa = p.getString("circa");
+            title = p.getString("title");
+            // get thumbnail
+            imageTask = new HttpImageTask(this);
+            imageTask.execute(apiUrl + "?action=photo&id=" + id + "&sw=96&sh=96");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void httpImageDownloaded(Bitmap img) {
+        // get thumbnail to display in notification
+        Log.d(TAG, "Thumbnail downloaded.");
+        Intent notificationIntent = new Intent(getApplicationContext(), PhotoActivity.class);
+        TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
+        stackBuilder.addParentStack(MainActivity.class);
+        stackBuilder.addNextIntent(notificationIntent);
+        PendingIntent notificationPendingIntent = stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+        // create notification
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
+        builder.setSmallIcon(R.drawable.ic_launcher)
+                .setLargeIcon(img)
+                .setContentTitle(title)
+                .setContentText(circa)
+                .setContentIntent(notificationPendingIntent);
+        builder.setAutoCancel(true);
+        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        mNotificationManager.notify(0, builder.build());
+        Log.d(TAG, "Notification issued.");
     }
 }

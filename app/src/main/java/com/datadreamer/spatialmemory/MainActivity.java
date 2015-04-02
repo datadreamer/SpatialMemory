@@ -2,6 +2,7 @@ package com.datadreamer.spatialmemory;
 
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.location.Location;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -23,7 +24,6 @@ import com.google.android.gms.location.LocationServices;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -34,18 +34,18 @@ public class MainActivity extends ActionBarActivity implements
 
     // location variables
     private static final String TAG = "SpatialMemory";
-    protected GoogleApiClient mGoogleApiClient;     // entry point to Google Play services.
-    protected ArrayList<Geofence> mGeofenceList;    // The list of geofences used in this sample.
-    private boolean mGeofencesAdded;                // keep track if geofences were added.
-    private PendingIntent mGeofencePendingIntent;   // requesting to add or remove geofences.
-    protected Location mCurrentLocation;
-    protected LocationRequest mLocationRequest;
-    protected String mLastUpdateTime;
+    protected GoogleApiClient googleApiClient;
+    protected ArrayList<Geofence> geofenceList;
+    protected ArrayList<Photo> photoList;
+    private boolean mGeofencesAdded;
+    private PendingIntent mGeofencePendingIntent;
+    protected Location loc;
+    protected LocationRequest locRequest;
+    protected String lastUpdate;
     protected int updateCount;
-    protected boolean mRequestingLocationUpdates;
+    protected boolean requestingLocationUpdates;
 
     // api/data variables
-    protected String serverData;
     protected boolean requestedLocalData;
     protected HttpTask localDataTask;
     private String apiUrl = "http://www.spatialmemory.com/api.py";
@@ -59,11 +59,12 @@ public class MainActivity extends ActionBarActivity implements
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         textElement = (TextView) findViewById(R.id.geocoordinates);
-        mGeofenceList = new ArrayList<Geofence>();
+        geofenceList = new ArrayList<Geofence>();
+        photoList = new ArrayList<Photo>();
         mGeofencePendingIntent = null;
-        mRequestingLocationUpdates = true;
+        requestingLocationUpdates = true;
         requestedLocalData = false;
-        mLastUpdateTime = "";
+        lastUpdate = "";
         updateCount = 0;
         buildGoogleApiClient();
     }
@@ -71,81 +72,74 @@ public class MainActivity extends ActionBarActivity implements
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
-    protected synchronized void buildGoogleApiClient() {
-        mGoogleApiClient = new GoogleApiClient.Builder(this)
-                .addConnectionCallbacks(this)
-                .addOnConnectionFailedListener(this)
-                .addApi(LocationServices.API)
-                .build();
-        createLocationRequest();
-    }
-
-    protected void createLocationRequest() {
-        mLocationRequest = new LocationRequest();
-        mLocationRequest.setInterval(10000);
-        mLocationRequest.setFastestInterval(5000);
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-    }
-
-    protected void startLocationUpdates() {
-        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+        return id == R.id.action_settings || super.onOptionsItemSelected(item);
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        mGoogleApiClient.connect();
+        googleApiClient.connect();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        if (mGoogleApiClient.isConnected()) {
-            mGoogleApiClient.disconnect();
+        if (googleApiClient.isConnected()) {
+            googleApiClient.disconnect();
         }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        stopLocationUpdates();
-    }
-
-    protected void stopLocationUpdates() {
-        LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
+        if (googleApiClient.isConnected() && requestingLocationUpdates) {
+            stopLocationUpdates();
+        }
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        if (mGoogleApiClient.isConnected() && !mRequestingLocationUpdates) {
+        if (googleApiClient.isConnected() && !requestingLocationUpdates) {
             startLocationUpdates();
         }
     }
 
+
+
+
+    /** LOCATION FUNCTIONS **/
+
+    protected synchronized void buildGoogleApiClient() {
+        googleApiClient = new GoogleApiClient.Builder(this).addConnectionCallbacks(this).addOnConnectionFailedListener(this).addApi(LocationServices.API).build();
+        createLocationRequest();
+    }
+
+    protected void createLocationRequest() {
+        locRequest = new LocationRequest();
+        locRequest.setInterval(20000);
+        locRequest.setFastestInterval(15000);
+        locRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+    }
+
+    protected void startLocationUpdates() {
+        LocationServices.FusedLocationApi.requestLocationUpdates(googleApiClient, locRequest, this);
+    }
+
+    protected void stopLocationUpdates() {
+        LocationServices.FusedLocationApi.removeLocationUpdates(googleApiClient, this);
+    }
+
     @Override
     public void onConnected(Bundle bundle) {
-        if (mRequestingLocationUpdates) {
+        if (requestingLocationUpdates) {
             startLocationUpdates();
         }
     }
@@ -153,7 +147,7 @@ public class MainActivity extends ActionBarActivity implements
     @Override
     public void onConnectionSuspended(int i) {
         Log.d(TAG, "Connection suspended");
-        mGoogleApiClient.connect();
+        googleApiClient.connect();
     }
 
     @Override
@@ -163,87 +157,103 @@ public class MainActivity extends ActionBarActivity implements
 
     @Override
     public void onLocationChanged(Location location) {
-        mCurrentLocation = location;
-        mLastUpdateTime = DateFormat.getTimeInstance().format(new Date());
+        loc = location;
+        lastUpdate = DateFormat.getTimeInstance().format(new Date());
         if(!requestedLocalData){
             localDataTask = new HttpTask(this);
-            localDataTask.execute(apiUrl + "?action=local&lat=" + String.valueOf(mCurrentLocation.getLatitude()) + "&lon=" + String.valueOf(mCurrentLocation.getLongitude()));
+            localDataTask.execute(apiUrl + "?action=local&lat=" + String.valueOf(loc.getLatitude()) + "&lon=" + String.valueOf(loc.getLongitude()));
             requestedLocalData = true;
         }
+        Log.d(TAG, String.valueOf(loc.getLatitude()) +", "+ String.valueOf(loc.getLongitude()));
         updateCount++;
         updateUI();
     }
 
     private void updateUI() {
-        Log.d(TAG, String.valueOf(mCurrentLocation.getLatitude()) +", "+ String.valueOf(mCurrentLocation.getLongitude()));
         String history = textElement.getText().toString();
-        textElement.setText(String.valueOf(updateCount) + ": "+
-                mLastUpdateTime +" = "+
-                String.valueOf(mCurrentLocation.getLatitude()) +", "+
-                String.valueOf(mCurrentLocation.getLongitude()) +"\n"+
-                history);
+        textElement.setText(String.valueOf(updateCount) + ": "+ lastUpdate +" = "+ String.valueOf(loc.getLatitude()) +", "+ String.valueOf(loc.getLongitude()) +"\n"+ history);
     }
 
+
+
+
+    /** DATA HANDLING FUNCTIONS **/
+
     @Override
-    public void httpTaskComplete(String result) {
+    public void httpDataDownloaded(String result) {
         Log.d(TAG, result);
         try {
             JSONArray list = new JSONArray(result);
-            // for each photo entry
-            for(int i=0; i<list.length(); i++){
+            for(int i=0; i<list.length(); i++){         // for each photo entry
                 JSONObject p = list.getJSONObject(i);
-                Log.d(TAG, p.getString("id") +" "+ p.getString("dist") +" "+ p.getString("lat") +" "+ p.getString("lon"));
-                // build new geofence for entry
+                //Log.d(TAG, p.getString("id") +" "+ p.getString("dist") +" "+ p.getString("lat") +" "+ p.getString("lon"));
+                int id = p.getInt("id");
+                int item_id = p.getInt("item_id");
+                int page_id = p.getInt("page_id");
+                String collection_id = p.getString("collection_id");
+                String circa = p.getString("circa");
+                String title = p.getString("title");
+                float lat = Float.parseFloat(p.getString("lat"));
+                float lon = Float.parseFloat(p.getString("lon"));
+                Photo photo = new Photo(id, item_id, page_id, collection_id, title, circa, lat, lon);
+                photoList.add(photo);
                 // TODO: check for repeat entries before creating
-                mGeofenceList.add(new Geofence.Builder()
+                geofenceList.add(new Geofence.Builder()
                         .setRequestId(p.getString("id"))
-                        .setCircularRegion(p.getDouble("lat"), p.getDouble("lon"), 50)
+                        .setCircularRegion(p.getDouble("lat"), p.getDouble("lon"), 100)
                         .setExpirationDuration(300000)
-                        .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
+                        .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
                         .build());
             }
             // add geofences to activate callbacks
-            LocationServices.GeofencingApi.addGeofences(mGoogleApiClient, getGeofencingRequest(), getGeofencePendingIntent()).setResultCallback(this);
+            LocationServices.GeofencingApi.addGeofences(googleApiClient, getGeofencingRequest(), getGeofencePendingIntent());
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
+    @Override
+    public void httpImageDownloaded(Bitmap img) {
+        Log.d(TAG, "Image downloaded!");
+    }
+
     /**
-     * Gets a PendingIntent to send with the request to add or remove Geofences. Location Services
-     * issues the Intent inside this PendingIntent whenever a geofence transition occurs for the
-     * current list of geofences.
-     *
-     * @return A PendingIntent for the IntentService that handles geofence transitions.
+     * Creates a pending intent to be activated when a geofence is entered.
+     * @return PendingIntent to handle geofence events.
      */
     private PendingIntent getGeofencePendingIntent() {
         if (mGeofencePendingIntent != null) {
             return mGeofencePendingIntent;
         }
         Intent intent = new Intent(this, GeofenceTransitionsIntentService.class);
+        //intent.putParcelableArrayListExtra("photoList", photoList);
         return PendingIntent.getService(this, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
     /**
-     * Builds and returns a GeofencingRequest. Specifies the list of geofences to be monitored.
-     * Also specifies how the geofence notifications are initially triggered.
+     * Creates a geofence request using list of locations returned from server.
+     * @return GeofencingRequest
      */
     private GeofencingRequest getGeofencingRequest() {
         GeofencingRequest.Builder builder = new GeofencingRequest.Builder();
         builder.setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER);
-        builder.addGeofences(mGeofenceList);
+        builder.addGeofences(geofenceList);
         return builder.build();
     }
 
+    /**
+     * Called when geofences have been added.
+     * @param status from ResultCallback
+     */
     @Override
     public void onResult(Status status) {
-        if (status.isSuccess()) {
-            // Update state and save in shared preferences.
+        if (status.isSuccess()) {   // Update state and save in shared preferences.
             mGeofencesAdded = !mGeofencesAdded;
-        } else {
-            // Get the status code for the error and log it using a user-friendly message.
+        } else {    // Get the status code for the error and log it using a user-friendly message.
             String errorMessage = GeofenceErrorMessages.getErrorString(this, status.getStatusCode());
             Log.e(TAG, errorMessage);
         }
     }
+
+
 }
