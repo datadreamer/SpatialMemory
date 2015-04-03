@@ -145,8 +145,8 @@ public class GeofenceTransitionsIntentService extends IntentService implements H
         try {
             JSONObject p = new JSONObject(result);
             id = p.getString("id");
-            circa = p.getString("circa");
             title = p.getString("title");
+            circa = p.getString("circa");
             // get thumbnail
             imageTask = new HttpImageTask(this);
             imageTask.execute(apiUrl + "?action=photo&id=" + id + "&sw=96&sh=96");
@@ -160,6 +160,9 @@ public class GeofenceTransitionsIntentService extends IntentService implements H
         // get thumbnail to display in notification
         Log.d(TAG, "Thumbnail downloaded.");
         Intent notificationIntent = new Intent(getApplicationContext(), PhotoActivity.class);
+        notificationIntent.putExtra("id", id);
+        notificationIntent.putExtra("title", title);
+        notificationIntent.putExtra("circa", circa);
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
         stackBuilder.addParentStack(MainActivity.class);
         stackBuilder.addNextIntent(notificationIntent);

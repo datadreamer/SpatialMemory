@@ -3,21 +3,39 @@ package com.datadreamer.spatialmemory;
 import android.graphics.Bitmap;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ImageView;
 
 
 public class PhotoActivity extends ActionBarActivity implements HttpTaskListener{
 
-    private HttpImageTask httpImageTask;
+    protected static final String TAG = "PhotoActivity";
+    private HttpImageTask imageTask;
     private String apiUrl = "http://www.spatialmemory.com/api.py";
+    private String id, title, circa;
+    private Bitmap img;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_photo);
-        httpImageTask = new HttpImageTask(this);
-        //httpImageTask.execute(apiUrl + "?action=photo&id=" + id);
+        // grab photo data
+        Bundle extras = getIntent().getExtras();
+        String id = extras.getString("id");
+        String title = extras.getString("title");
+        String circa = extras.getString("circa");
+        Log.d(TAG, id +": "+ title +" ("+ circa +")");
+        // grab screen resolution
+        DisplayMetrics metrics = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(metrics);
+        int sh = metrics.heightPixels;
+        int sw = metrics.widthPixels;
+        // grab image
+        imageTask = new HttpImageTask(this);
+        imageTask.execute(apiUrl + "?action=photo&id=" + id +"&sw="+sw+"&sh="+sh);
     }
 
     @Override
@@ -43,6 +61,8 @@ public class PhotoActivity extends ActionBarActivity implements HttpTaskListener
 
     @Override
     public void httpImageDownloaded(Bitmap img) {
-
+        ImageView iv = (ImageView)findViewById(R.id.imageView);
+        iv.setImageBitmap(img);
+        Log.d(TAG, "Displaying photo.");
     }
 }
