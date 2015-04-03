@@ -1,6 +1,7 @@
 package com.datadreamer.spatialmemory;
 
 import android.graphics.Bitmap;
+import android.support.v4.app.NavUtils;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
@@ -46,11 +47,12 @@ public class PhotoActivity extends ActionBarActivity implements HttpTaskListener
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_settings) {
-            return true;
+        switch (item.getItemId()) {
+            // Respond to the action bar's Up/Home button
+            case android.R.id.home:
+                NavUtils.navigateUpFromSameTask(this);
+                return true;
         }
-
         return super.onOptionsItemSelected(item);
     }
 
@@ -63,6 +65,7 @@ public class PhotoActivity extends ActionBarActivity implements HttpTaskListener
     public void httpImageDownloaded(Bitmap img) {
         ImageView iv = (ImageView)findViewById(R.id.imageView);
         iv.setImageBitmap(img);
+        iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
         Log.d(TAG, "Displaying photo.");
     }
 }
