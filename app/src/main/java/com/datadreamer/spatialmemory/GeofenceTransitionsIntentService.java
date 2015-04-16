@@ -81,7 +81,7 @@ public class GeofenceTransitionsIntentService extends IntentService implements H
             title = p.getString("title");
             circa = p.getString("circa");
             // get thumbnail
-            imageTask = new HttpImageTask(this);
+            imageTask = new HttpImageTask(this, id);
             imageTask.execute(apiUrl + "?action=photo&id=" + id + "&sw=96&sh=96");
         } catch (Exception e) {
             e.printStackTrace();
@@ -89,7 +89,7 @@ public class GeofenceTransitionsIntentService extends IntentService implements H
     }
 
     @Override
-    public void httpImageDownloaded(Bitmap img) {
+    public void httpImageDownloaded(Bitmap img, String id) {
         // get thumbnail to display in notification
         Log.d(TAG, "Thumbnail downloaded.");
         Intent notificationIntent = new Intent(getApplicationContext(), PhotoActivity.class);

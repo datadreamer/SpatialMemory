@@ -54,6 +54,11 @@ public class MainActivity extends ActionBarActivity implements
     protected TextView textElement;
 
 
+
+
+
+    /** ACTIVITY LIFECYCLE FUNCTIONS **/
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -67,8 +72,55 @@ public class MainActivity extends ActionBarActivity implements
         lastUpdate = "";
         updateCount = 0;
         buildGoogleApiClient();
+        googleApiClient.connect();
+        if (googleApiClient.isConnected()) {
+            startLocationUpdates();
+        }
     }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        //if (googleApiClient.isConnected() && !requestingLocationUpdates) {
+        //    startLocationUpdates();
+        //}
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        //if (googleApiClient.isConnected() && requestingLocationUpdates) {
+        //    stopLocationUpdates();
+        //}
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        //if (googleApiClient.isConnected()) {
+        //    googleApiClient.disconnect();
+        //}
+    }
+
+    @Override
+    protected void onDestroy(){
+        super.onDestroy();
+        if (googleApiClient.isConnected() && requestingLocationUpdates) {
+            stopLocationUpdates();
+            googleApiClient.disconnect();
+        }
+    }
+
+
+
+
+
+    /** MENU FUNCTIONS **/
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -82,35 +134,6 @@ public class MainActivity extends ActionBarActivity implements
         return id == R.id.action_settings || super.onOptionsItemSelected(item);
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        googleApiClient.connect();
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if (googleApiClient.isConnected()) {
-            googleApiClient.disconnect();
-        }
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (googleApiClient.isConnected() && requestingLocationUpdates) {
-            stopLocationUpdates();
-        }
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        if (googleApiClient.isConnected() && !requestingLocationUpdates) {
-            startLocationUpdates();
-        }
-    }
 
 
 
@@ -187,6 +210,9 @@ public class MainActivity extends ActionBarActivity implements
             for(int i=0; i<list.length(); i++){         // for each photo entry
                 JSONObject p = list.getJSONObject(i);
                 //Log.d(TAG, p.getString("id") +" "+ p.getString("dist") +" "+ p.getString("lat") +" "+ p.getString("lon"));
+                // update text element for debugging purposes
+                String history = textElement.getText().toString();
+                textElement.setText("id: " + p.getString("id") +", dist: "+ p.getString("dist") +", title: " +p.getString("title") +"\n"+ history);
                 int id = p.getInt("id");
                 int item_id = p.getInt("item_id");
                 int page_id = p.getInt("page_id");
@@ -213,7 +239,8 @@ public class MainActivity extends ActionBarActivity implements
     }
 
     @Override
-    public void httpImageDownloaded(Bitmap img) {
+    public void httpImageDownloaded(Bitmap img, String id) {
+        // this never gets used, but must be implemented
         Log.d(TAG, "Image downloaded!");
     }
 
