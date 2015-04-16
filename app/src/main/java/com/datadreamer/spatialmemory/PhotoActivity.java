@@ -1,5 +1,7 @@
 package com.datadreamer.spatialmemory;
 
+import android.app.TaskStackBuilder;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.support.v4.app.NavUtils;
 import android.support.v7.app.ActionBarActivity;
@@ -22,6 +24,15 @@ public class PhotoActivity extends ActionBarActivity implements HttpTaskListener
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // not sure if this is a hack, but it works.
+        if(isTaskRoot()){
+            Intent intent = new Intent(this, PhotoActivity.class);
+            intent.putExtras(getIntent());
+            TaskStackBuilder.create(this)
+                    .addNextIntentWithParentStack(intent)
+                    .startActivities();
+            return;
+        }
         setContentView(R.layout.activity_photo);
         // grab photo data
         Bundle extras = getIntent().getExtras();
@@ -35,7 +46,8 @@ public class PhotoActivity extends ActionBarActivity implements HttpTaskListener
         int sh = metrics.heightPixels;
         int sw = metrics.widthPixels;
         // grab image
-        imageTask = new HttpImageTask(this);
+        String[] args = {id};
+        imageTask = new HttpImageTask(this, args);
         imageTask.execute(apiUrl + "?action=photo&id=" + id +"&sw="+sw+"&sh="+sh);
     }
 
@@ -62,10 +74,10 @@ public class PhotoActivity extends ActionBarActivity implements HttpTaskListener
     }
 
     @Override
-    public void httpImageDownloaded(Bitmap img) {
+    public void httpImageDownloaded(Bitmap img, String[] args) {
         ImageView iv = (ImageView)findViewById(R.id.imageView);
         iv.setImageBitmap(img);
         iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        Log.d(TAG, "Displaying photo.");
+        Log.d(TAG, "Displaying photo: "+ args[0]);
     }
 }

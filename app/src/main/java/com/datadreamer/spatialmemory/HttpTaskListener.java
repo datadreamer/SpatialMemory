@@ -7,5 +7,5 @@ import android.graphics.Bitmap;
  */
 public interface HttpTaskListener{
     void httpDataDownloaded(String result);
-    void httpImageDownloaded(Bitmap img, String id);
+    void httpImageDownloaded(Bitmap img, String[] args);
 }

@@ -1,6 +1,7 @@
 package com.datadreamer.spatialmemory;
 
 import android.app.IntentService;
+import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.TaskStackBuilder;
@@ -30,7 +31,6 @@ public class GeofenceTransitionsIntentService extends IntentService implements H
     protected HttpTask dataTask;
     protected HttpImageTask imageTask;
     private String apiUrl = "http://www.spatialmemory.com/api.py";
-    private String id, circa, title;
 
     public GeofenceTransitionsIntentService() {
         super(TAG);
@@ -55,16 +55,15 @@ public class GeofenceTransitionsIntentService extends IntentService implements H
             List<Geofence> triggeringGeofences = geofencingEvent.getTriggeringGeofences();
             for (Geofence geofence : triggeringGeofences) {
                 Log.d(TAG, geofence.getRequestId());
-                id = geofence.getRequestId();
-                // FIXME: do something with multiple ID's returned
+                String id = geofence.getRequestId();
+                // FIXME: grab data from photoList to avoid a GET for each entry
+                //ArrayList photoList = intent.getParcelableArrayListExtra("photoList");
+                // FIXME: grab data from server since this isn't working
+                dataTask = new HttpTask(this);
+                dataTask.execute(apiUrl + "?action=info&id=" + id);
             }
 
-            // TODO: grab data from photoList
-            //ArrayList photoList = intent.getParcelableArrayListExtra("photoList");
 
-            // grab data from server since this isn't working
-            dataTask = new HttpTask(this);
-            dataTask.execute(apiUrl + "?action=info&id=" + id);
         } else {
             // Log the error.
             Log.e(TAG, getString(R.string.geofence_transition_invalid_type, geofenceTransition));
@@ -77,11 +76,12 @@ public class GeofenceTransitionsIntentService extends IntentService implements H
         Log.d(TAG, "Photo info downloaded.");
         try {
             JSONObject p = new JSONObject(result);
-            id = p.getString("id");
-            title = p.getString("title");
-            circa = p.getString("circa");
+            String id = p.getString("id");
+            String title = p.getString("title");
+            String circa = p.getString("circa");
             // get thumbnail
-            imageTask = new HttpImageTask(this, id);
+            String[] args = {id, title, circa};
+            imageTask = new HttpImageTask(this, args);
             imageTask.execute(apiUrl + "?action=photo&id=" + id + "&sw=96&sh=96");
         } catch (Exception e) {
             e.printStackTrace();
@@ -89,17 +89,24 @@ public class GeofenceTransitionsIntentService extends IntentService implements H
     }
 
     @Override
-    public void httpImageDownloaded(Bitmap img, String id) {
+    public void httpImageDownloaded(Bitmap img, String[] args) {
         // get thumbnail to display in notification
-        Log.d(TAG, "Thumbnail downloaded.");
+        String id = args[0];
+        String title = args[1];
+        String circa = args[2];
+        Log.d(TAG, "Thumbnail downloaded: "+ id);
+
+        // FIXME: can not reach parent FFS
         Intent notificationIntent = new Intent(getApplicationContext(), PhotoActivity.class);
         notificationIntent.putExtra("id", id);
         notificationIntent.putExtra("title", title);
         notificationIntent.putExtra("circa", circa);
+
         TaskStackBuilder stackBuilder = TaskStackBuilder.create(this);
-        stackBuilder.addParentStack(MainActivity.class);
+        //stackBuilder.addParentStack(PhotoActivity.class);
         stackBuilder.addNextIntent(notificationIntent);
-        PendingIntent notificationPendingIntent = stackBuilder.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent notificationPendingIntent = stackBuilder.getPendingIntent(Integer.parseInt(id), PendingIntent.FLAG_UPDATE_CURRENT);
+
         // create notification
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
         builder.setSmallIcon(R.drawable.ic_launcher)
@@ -109,7 +116,8 @@ public class GeofenceTransitionsIntentService extends IntentService implements H
                 .setContentIntent(notificationPendingIntent);
         builder.setAutoCancel(true);
         NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        mNotificationManager.notify(0, builder.build());
-        Log.d(TAG, "Notification issued.");
+        mNotificationManager.notify(Integer.parseInt(id), builder.build());
+
+        Log.d(TAG, "Notification issued: "+ id);
     }
 }

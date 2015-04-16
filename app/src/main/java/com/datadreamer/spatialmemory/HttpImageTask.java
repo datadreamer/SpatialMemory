@@ -17,11 +17,11 @@ import java.net.URL;
 public class HttpImageTask extends AsyncTask<String, Void, Bitmap> {
     private static final String TAG = "GetImageTask";
     private HttpTaskListener listener;
-    private String id;
+    private String[] args;
 
-    public HttpImageTask(HttpTaskListener listener, String id){
+    public HttpImageTask(HttpTaskListener listener, String[] args){
         this.listener = listener;
-        this.id = id;
+        this.args = args;
     }
 
     @Override
@@ -36,7 +36,7 @@ public class HttpImageTask extends AsyncTask<String, Void, Bitmap> {
     // callback to listeners with string result
     protected void onPostExecute(Bitmap result) {
         Log.d(TAG, "Image downloaded.");
-        listener.httpImageDownloaded(result, id);
+        listener.httpImageDownloaded(result, args);
     }
 
     // GET url and return resulting content as string.

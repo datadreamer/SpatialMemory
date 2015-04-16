@@ -86,25 +86,16 @@ public class MainActivity extends ActionBarActivity implements
     @Override
     public void onResume() {
         super.onResume();
-        //if (googleApiClient.isConnected() && !requestingLocationUpdates) {
-        //    startLocationUpdates();
-        //}
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        //if (googleApiClient.isConnected() && requestingLocationUpdates) {
-        //    stopLocationUpdates();
-        //}
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        //if (googleApiClient.isConnected()) {
-        //    googleApiClient.disconnect();
-        //}
     }
 
     @Override
@@ -154,10 +145,12 @@ public class MainActivity extends ActionBarActivity implements
 
     protected void startLocationUpdates() {
         LocationServices.FusedLocationApi.requestLocationUpdates(googleApiClient, locRequest, this);
+        Log.d(TAG, "Starting location updates.");
     }
 
     protected void stopLocationUpdates() {
         LocationServices.FusedLocationApi.removeLocationUpdates(googleApiClient, this);
+        Log.d(TAG, "Ending location updates.");
     }
 
     @Override
@@ -169,13 +162,13 @@ public class MainActivity extends ActionBarActivity implements
 
     @Override
     public void onConnectionSuspended(int i) {
-        Log.d(TAG, "Connection suspended");
+        Log.e(TAG, "Connection suspended");
         googleApiClient.connect();
     }
 
     @Override
     public void onConnectionFailed(ConnectionResult result) {
-        Log.d(TAG, "Connection failed: ConnectionResult.getErrorCode() = " + result.getErrorCode());
+        Log.e(TAG, "Connection failed: ConnectionResult.getErrorCode() = " + result.getErrorCode());
     }
 
     @Override
@@ -239,7 +232,7 @@ public class MainActivity extends ActionBarActivity implements
     }
 
     @Override
-    public void httpImageDownloaded(Bitmap img, String id) {
+    public void httpImageDownloaded(Bitmap img, String[] args) {
         // this never gets used, but must be implemented
         Log.d(TAG, "Image downloaded!");
     }
